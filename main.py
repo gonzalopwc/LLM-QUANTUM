@@ -111,6 +111,8 @@ if "first_min_var_res" not in st.session_state:
     st.session_state["first_min_var_res"] = False
 if "first_min_var_max_rent" not in st.session_state:
     st.session_state["first_min_var_max_rent"] = False
+if "first_bot" not in st.session_state:
+    st.session_state["first_bot"] = False
 
 # -------------------------------------------------------------------------------
 # 5. Definir el prompt y configurar el chain
@@ -205,7 +207,7 @@ def render_assistant_response(question):
 # -------------------------------------------------------------------------------
 # 9. Interfaz principal del chat
 # -------------------------------------------------------------------------------
-def mostrar_chat():
+def  mostrar_chat(seleccion):
     """
     Muestra la interfaz de chat con:
       - Logo (opcional)
@@ -231,12 +233,113 @@ def mostrar_chat():
         user_question = st.session_state.question
         render_assistant_response(user_question)
         st.session_state.first = False
+        st.session_state.first_bot = True
+
+    if st.session_state.first_bot and seleccion != "matriz de covarianza":
+        # Contenedor para el botón con estilo
+        with st.container():
+            ind = 0
+            st.markdown("---")  # Línea divisoria
+            col1, col2, col3 = st.columns([1, 3, 1])
+            # opciones_optimizacion = ["matriz de covarianza",
+            #                     "Portafolio de mínima varianza",
+            #                     "Portafolio de mínima varianza con restricciones",
+            #                     "Portafolio considerando retorno y riesgo simultáneamente"]
+            with col2:
+                if st.button("🧪 Versión Cuántica", 
+                            use_container_width=True):
+                    if seleccion == "Portafolio de mínima varianza":
+                        quantum_question = r'''
+                        A continuación, se detalla la transformación del problema de optimización de portafolios a un modelo cuántico (QUBO), incluyendo todas las fórmulas y su justificación, quiero que expliques los pasos pero no te olvides de mencionar nada:
+
+                        ---
+
+                        ### **1. Discretización de Pesos**  
+                        Los algoritmos cuánticos trabajan con variables discretas. Cada peso $w_i$ del activo $i$ se representa en $K+1$ niveles discretos:  
+                        $$
+                        w_i \in \left\{0, \frac{1}{K}, \frac{2}{K}, \dots, 1\right\}
+                        $$  
+                        Se utilizan **variables binarias** $x_{i,k}$, donde:  
+                        - $x_{i,k} = 1$ si $w_i = \frac{k}{K}$  
+                        - $x_{i,k} = 0$ en otro caso  
+
+                        **Restricción de selección única por activo:**  
+                        $$
+                        \sum_{k=0}^{K} x_{i,k} = 1 \quad \forall i
+                        $$
+
+                        ---
+
+                        ### **2. Expresión de los Pesos en Términos Binarios**  
+                        Cada peso $w_i$ se expresa como una combinación lineal de las variables $x_{i,k}$:  
+                        $$
+                        w_i = \sum_{k=0}^{K} \frac{k}{K} x_{i,k}
+                        $$
+
+                        ---
+
+                        ### **3. Varianza del Portafolio**  
+                        La varianza del portafolio ($\sigma_p^2$) se define como:  
+                        $$
+                        \sigma_p^2 = \mathbf{w}^T \Sigma \mathbf{w} = \sum_{i=1}^{5} \sum_{j=1}^{5} w_i \Sigma_{ij} w_j
+                        $$  
+                        Sustituyendo los pesos discretizados:  
+                        $$
+                        \sigma_p^2 = \sum_{i=1}^{5} \sum_{j=1}^{5} \left( \sum_{k=0}^{K} \frac{k}{K} x_{i,k} \right) \Sigma_{ij} \left( \sum_{l=0}^{K} \frac{l}{K} x_{j,l} \right)
+                        $$
+
+                        ---
+
+                        ### **4. Restricciones Transformadas**  
+                        **a) Suma unitaria de pesos:**  
+                        $$
+                        \sum_{i=1}^{5} \sum_{k=0}^{K} \frac{k}{K} x_{i,k} = 1
+                        $$  
+                        **b) Selección única por activo (ya incluida en la discretización):**  
+                        $$
+                        \sum_{k=0}^{K} x_{i,k} = 1 \quad \forall i
+                        $$
+
+                        ---
+
+                        ### **5. Formulación QUBO para Algoritmos Cuánticos**  
+                        Se construye el Hamiltoniano $H$ que combina la varianza y las restricciones mediante penalizaciones ($\lambda$ y $\mu$):  
+
+                        $$
+                        \begin{align*}
+                        H = & \underbrace{\sum_{i=1}^{5} \sum_{j=1}^{5} \left( \sum_{k=0}^{K} \frac{k}{K} x_{i,k} \right) \Sigma_{ij} \left( \sum_{l=0}^{K} \frac{l}{K} x_{j,l} \right)}_{\text{Varianza}} \\
+                        & + \lambda \underbrace{\left( \sum_{i=1}^{5} \sum_{k=0}^{K} \frac{k}{K} x_{i,k} - 1 \right)^2}_{\text{Restricción de suma unitaria}} \\
+                        & + \mu \underbrace{\sum_{i=1}^{5} \left( \sum_{k=0}^{K} x_{i,k} - 1 \right)^2}_{\text{Restricción de selección única}}
+                        \end{align*}
+                        $$
+
+                        ---
+
+                        ### **Desglose Final del Hamiltoniano (QUBO)**  
+                        Al expandir los términos cuadráticos y agrupar las variables binarias $x_{i,k}$, el Hamiltoniano se reduce a una forma QUBO estándar:  
+                        $$
+                        H = \sum_{i,k} Q_{i,k}^{(\text{var})} x_{i,k} + \sum_{i,k,j,l} Q_{i,k,j,l}^{(\text{var})} x_{i,k}x_{j,l} + \lambda \sum_{i,k,j,l} Q_{i,k,j,l}^{(\lambda)} x_{i,k}x_{j,l} + \mu \sum_{i,k,l} Q_{i,k,l}^{(\mu)} x_{i,k}x_{i,l}
+                        $$  
+                        Donde los coeficientes $Q$ se calculan a partir de $\Sigma$, $\lambda$, y $\mu$.
+
+                        **El Hamiltoniano final de la QUBO queda expresado como:**  
+                        $$
+                        H = \sum_{i,j,k,l} \frac{k l \Sigma_{ij}}{K^2} x_{i,k}x_{j,l} + \lambda \left( \sum_{i,k} \frac{k}{K} x_{i,k} - 1 \right)^2 + \mu \sum_{i} \left( \sum_{k} x_{i,k} - 1 \right)^2
+                        $$
+                        '''
+
+                        ind = 1
+            if ind == 1:
+                st.session_state.first_bot = False
+                render_assistant_response(quantum_question)
 
     # Input para preguntas posteriores
     user_question = st.chat_input("Escribe tu pregunta...")
     if user_question:
+        st.session_state.first_bot = False
         render_user_message(user_question)
         render_assistant_response(user_question)
+    
 
 # -------------------------------------------------------------------------------
 # 8. Pantalla inicial
@@ -1435,7 +1538,7 @@ def mostrar_pantalla_inicial():
                 except Exception as e:
                     st.error(f"Error calculando el portafolio: {str(e)}")
 
-        # mostrar_chat()
+        mostrar_chat(seleccion)
 
 
 # -------------------------------------------------------------------------------
